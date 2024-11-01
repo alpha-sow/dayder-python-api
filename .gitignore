@@ -3,4 +3,4 @@ api/
 *.pyc
 .pytest_cache
 .idea
-*/__pycache__/
+__pycache__/
