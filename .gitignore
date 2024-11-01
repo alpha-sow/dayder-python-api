@@ -1,4 +1,6 @@
 api/
-.idea
 .venv
 *.pyc
+.pytest_cache
+.idea
+*/__pycache__/
