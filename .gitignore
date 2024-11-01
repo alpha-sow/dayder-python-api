@@ -1,4 +1,4 @@
 api/
 .idea
 .venv
-test/__pycache__/
+*.pyc
