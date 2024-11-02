@@ -13,8 +13,14 @@ class User(BaseModel):
 class UserInDB(User):
     hashed_password: str
 
+class NewUserInDB(User):
+    password: str
+
 
 class UserRepository:
     @staticmethod
     async def get_user_by_username(username: str):
         return await user_collection.find_one({"username": username})
+    @staticmethod
+    async def insert_user(user: UserInDB):
+        return await user_collection.insert_one(user.model_dump())

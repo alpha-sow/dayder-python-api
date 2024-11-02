@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt import InvalidTokenError
 from passlib.context import CryptContext
-from starlette.status import HTTP_401_UNAUTHORIZED
+from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_201_CREATED
 
-from app.data import User, UserInDB, TokenData, Token
+from app.data import User, UserInDB, TokenData, Token, NewUserInDB
 from app.data.user_repository import UserRepository
 from app.oauth2_scheme import oauth2_scheme
 
@@ -40,6 +40,8 @@ async def authenticate_user(username: str, password: str):
     if response is None:
         return None
     user = UserInDB(**response)
+    if user.disabled :
+        return None
     if not verify_password(password, user.hashed_password):
         return None
     return user
@@ -59,7 +61,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 @router.post("/token")
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
     user = await authenticate_user(form_data.username, form_data.password)
-    if  user is None:
+    if user is None:
         raise HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -103,3 +105,8 @@ async def get_current_active_user(
 @router.get("/users/me", response_model=User)
 def get_users_me(current_user: Annotated[User, Depends(get_current_active_user)]):
     return current_user
+
+@router.post("/users", status_code=HTTP_201_CREATED)
+async def create_user(user: NewUserInDB):
+    new_user = UserInDB(hashed_password= get_password_hash(user.password), **user.model_dump())
+    await  UserRepository.insert_user(new_user)
