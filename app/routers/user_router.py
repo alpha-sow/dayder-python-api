@@ -1,52 +1,95 @@
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
+import jwt
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
+from jwt import InvalidTokenError
+from passlib.context import CryptContext
 from starlette.status import HTTP_401_UNAUTHORIZED
 
-from app.data import User
+from app.data import User, UserInDB, TokenData, Token
 from app.data.user_repository import UserRepository
 from app.oauth2_scheme import oauth2_scheme
+
+SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter(
     tags=["Users"],
 )
 
 
-def fake_hash_password(password: str):
-    return "fakehashed" + password
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
 
 
-@router.post("/token")
-async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    response = await UserRepository.get_user_by_username(form_data.username)
-    if response is None:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-    user = User(id=str(response["_id"]), **response)
-    hashed_password = fake_hash_password(form_data.password)
-    if not hashed_password == user.hashed_password:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-    return {"access_token": user.username, "token_type": "bearer"}
+def get_password_hash(password):
+    return pwd_context.hash(password)
 
 
 async def get_user(username: str):
-    return await  UserRepository.get_user_by_username(username)
+    return await UserRepository.get_user_by_username(username)
 
 
-async def fake_decode_token(token):
-    user = await get_user(token)
+async def authenticate_user(username: str, password: str):
+    response = await get_user(username)
+    if response is None:
+        return None
+    user = UserInDB(**response)
+    if not verify_password(password, user.hashed_password):
+        return None
     return user
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    user = await fake_decode_token(token)
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+@router.post("/token")
+async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
+    user = await authenticate_user(form_data.username, form_data.password)
     if  user is None:
         raise HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
+            detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return User(id=str(user["_id"]), **user)
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return Token(access_token=access_token, token_type="bearer")
+
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    credentials_exception = HTTPException(
+        status_code=HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        token_data = TokenData(username=username)
+    except InvalidTokenError:
+        raise credentials_exception
+    response = await get_user(username=token_data.username)
+    if response is None:
+        raise credentials_exception
+    return User(**response)
 
 
 async def get_current_active_user(
