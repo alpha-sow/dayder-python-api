@@ -1,19 +1,9 @@
-from datetime import datetime
-from typing import Optional
-
 from bson import ObjectId
-from pydantic import BaseModel, Field
 
-from .database import announcement_collection
+from app.data import Announcement
+from app.dependencies import database
 
-
-class Announcement(BaseModel):
-    id:  str | None = None
-    title: str = Field(...)
-    description: str = Field(...)
-    thumbnail: str | None = None
-    createdAt: Optional[datetime] = Field(default_factory=datetime.now)
-    updatedAt: Optional[datetime] = Field(default_factory=datetime.now)
+announcement_collection = database.announcement
 
 class AnnouncementRepository:
     @staticmethod
@@ -28,3 +18,6 @@ class AnnouncementRepository:
     @staticmethod
     async def delete_one(announcement_id: str):
         return await announcement_collection.delete_one({"_id": ObjectId(announcement_id)})
+    @staticmethod
+    async def put_one(announcement: Announcement):
+        return await announcement_collection.insert_one(announcement.model_dump())

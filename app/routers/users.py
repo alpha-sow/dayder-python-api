@@ -9,8 +9,8 @@ from passlib.context import CryptContext
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_201_CREATED
 
 from app.data import User, UserInDB, TokenData, Token, NewUserInDB
-from app.data.user_repository import UserRepository
-from app.oauth2_scheme import oauth2_scheme
+from app.dependencies import oauth2_scheme
+from app.repositories import UserRepository
 
 SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
 ALGORITHM = "HS256"
@@ -18,22 +18,16 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-router = APIRouter(
-    tags=["Users"],
-)
-
+router = APIRouter()
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
-
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-
 async def get_user(username: str):
     return await UserRepository.get_user_by_username(username)
-
 
 async def authenticate_user(username: str, password: str):
     response = await get_user(username)
@@ -46,7 +40,6 @@ async def authenticate_user(username: str, password: str):
         return None
     return user
 
-
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
@@ -57,12 +50,12 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
 @router.post("/token")
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
     user = await authenticate_user(form_data.username, form_data.password)
     if user is None:
         raise HTTPException(
+            
             status_code=HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
@@ -72,7 +65,6 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> T
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
-
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     credentials_exception = HTTPException(
@@ -93,7 +85,6 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         raise credentials_exception
     return User(**response)
 
-
 async def get_current_active_user(
         current_user: Annotated[User, Depends(get_current_user)],
 ):
@@ -101,9 +92,8 @@ async def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-
 @router.get("/users/me", response_model=User)
-def get_users_me(current_user: Annotated[User, Depends(get_current_active_user)]):
+def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]):
     return current_user
 
 @router.post("/users", status_code=HTTP_201_CREATED)
