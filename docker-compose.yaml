@@ -1,0 +1,23 @@
+services:
+  app:
+    build: .
+    ports:
+      - '8000:80'
+    depends_on:
+      - mongo
+    networks:
+      - backend
+  mongo:
+    image: mongo:latest
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - backend
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  mongo_data:

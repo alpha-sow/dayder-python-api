@@ -1,0 +1,7 @@
+pydantic~=2.9.2
+fastapi[standard]
+PyJWT~=2.9.0
+passlib~=1.7.4
+starlette~=0.41.2
+pymongo~=4.9.2
+motor~=3.6.0
