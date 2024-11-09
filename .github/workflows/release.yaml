@@ -35,3 +35,28 @@ jobs:
             echo "No tag found"
             exit 1
           fi
+
+  github_release:
+    name: Create GitHub Release
+    needs: [ details ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist
+          path: dist/
+
+      - name: Create GitHub Release
+        id: create_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create ${{ needs.details.outputs.tag_name }} --title ${{ needs.details.outputs.tag_name }} --generate-notes
