@@ -52,3 +52,11 @@ def test_read_user_me():
         response = client.get("/users/me", headers={"Authorization": "Bearer fake-token"})
         assert response.status_code == 200
         assert response.json() == mock_user.model_dump()
+
+
+def test_read_user_me_failure():
+    users.get_token_data = Mock(return_value=TokenData(username="fake-token"))
+    UserRepository.get_user_by_username = AsyncMock(return_value=None)
+    with patch("app.dependencies.oauth2_scheme", return_value="fake-token"):
+        response = client.get("/users/me", headers={"Authorization": "Bearer fake-token"})
+        assert response.status_code == 401
