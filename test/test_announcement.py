@@ -1,5 +1,5 @@
 from unittest.mock import AsyncMock, patch
-from starlette.testclient import TestClient
+from fastapi.testclient import TestClient
 from app.repositories import AnnouncementRepository
 from app.main import app
 
