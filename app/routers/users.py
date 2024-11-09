@@ -20,25 +20,30 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter()
 
+
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
+
 
 def get_password_hash(password):
     return pwd_context.hash(password)
 
+
 async def get_user(username: str):
     return await UserRepository.get_user_by_username(username)
+
 
 async def authenticate_user(username: str, password: str):
     response = await get_user(username)
     if response is None:
         return None
     user = UserInDB(**response)
-    if user.disabled :
+    if user.disabled:
         return None
     if not verify_password(password, user.hashed_password):
         return None
     return user
+
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
@@ -50,12 +55,12 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+
 @router.post("/token")
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
     user = await authenticate_user(form_data.username, form_data.password)
     if user is None:
         raise HTTPException(
-            
             status_code=HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
@@ -66,24 +71,30 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> T
     )
     return Token(access_token=access_token, token_type="bearer")
 
+
+def get_token_data(token: str, http_exception: HTTPException):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise http_exception
+        return TokenData(username=username)
+    except InvalidTokenError:
+        raise http_exception
+
+
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     credentials_exception = HTTPException(
         status_code=HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username)
-    except InvalidTokenError:
-        raise credentials_exception
+    token_data = get_token_data(token, credentials_exception)
     response = await get_user(username=token_data.username)
     if response is None:
         raise credentials_exception
     return User(**response)
+
 
 async def get_current_active_user(
         current_user: Annotated[User, Depends(get_current_user)],
@@ -92,11 +103,13 @@ async def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
+
 @router.get("/users/me", response_model=User)
 def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]):
     return current_user
 
+
 @router.post("/users", status_code=HTTP_201_CREATED)
 async def create_user(user: NewUserInDB):
-    new_user = UserInDB(hashed_password= get_password_hash(user.password), **user.model_dump())
+    new_user = UserInDB(hashed_password=get_password_hash(user.password), **user.model_dump())
     await  UserRepository.insert_user(new_user)
