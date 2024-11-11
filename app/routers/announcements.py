@@ -1,37 +1,63 @@
-from typing import List, Annotated
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Depends
+from bson import ObjectId
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi_pagination import Page
+from fastapi_pagination.ext.motor import paginate as motor_paginate
 from starlette.status import HTTP_201_CREATED, HTTP_204_NO_CONTENT
 
 from app.data import Announcement
-from app.dependencies import oauth2_scheme
-from app.repositories import AnnouncementRepository
+from app.dependencies import database, oauth2_scheme
 
 router = APIRouter()
 
-@router.get("")
-async def read_announcements(token: Annotated[str, Depends(oauth2_scheme)]) -> List[Announcement]:
-    result = []
-    response = await AnnouncementRepository.find_all()
-    for announcement in response:
-        result.append(Announcement(id= str(announcement["_id"]) ,**announcement))
-    return result
+
+def get_collection_announcement():
+    return database.announcement
+
+
+@router.get("", response_model=Page[Announcement])
+async def read_announcements(
+        token: Annotated[str, Depends(oauth2_scheme)],
+        collection=Depends(get_collection_announcement)
+):
+    return await motor_paginate(collection)
+
 
 @router.get("/{announcement_id}")
-async def read_announcement(announcement_id: str, token: Annotated[str, Depends(oauth2_scheme)]) -> Announcement:
-    announcement = await AnnouncementRepository.find_one(announcement_id)
+async def read_announcement(
+        announcement_id: str,
+        token: Annotated[str, Depends(oauth2_scheme)],
+        collection=Depends(get_collection_announcement)
+) -> Announcement:
+    announcement = await collection.find_one(ObjectId(announcement_id))
     if announcement is None:
         raise HTTPException(status_code=404, detail="Announcement not found")
-    return Announcement(id= str(announcement["_id"]) ,**announcement)
+    return Announcement(**announcement)
+
 
 @router.post("", status_code=HTTP_201_CREATED)
-async def create_announcement(announcement: Announcement, token: Annotated[str, Depends(oauth2_scheme)]):
-    await AnnouncementRepository.insert_one(announcement)
+async def create_announcement(
+        announcement: Announcement,
+        token: Annotated[str, Depends(oauth2_scheme)],
+        collection=Depends(get_collection_announcement)
+):
+    await collection.insert_one(announcement.model_dump(exclude={'id'}))
+
 
 @router.delete("/{announcement_id}", status_code=HTTP_204_NO_CONTENT)
-async def delete_announcement(announcement_id: str, token: Annotated[str, Depends(oauth2_scheme)]):
-    await AnnouncementRepository.delete_one(announcement_id)
+async def delete_announcement(
+        announcement_id: str,
+        token: Annotated[str, Depends(oauth2_scheme)],
+        collection=Depends(get_collection_announcement)
+):
+    await collection.delete_one(ObjectId(announcement_id))
+
 
 @router.put("")
-async def update_announcement(announcement: Announcement,  token: Annotated[str, Depends(oauth2_scheme)]):
-    await AnnouncementRepository.put_one(announcement)
+async def update_announcement(
+        announcement: Announcement,
+        token: Annotated[str, Depends(oauth2_scheme)],
+        collection=Depends(get_collection_announcement)
+):
+    await collection.put_one(announcement)
