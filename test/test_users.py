@@ -1,15 +1,39 @@
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch, AsyncMock
 from fastapi.testclient import TestClient
 
 from app.data import UserInDB, User, TokenData
 from app.main import app
-from app.repositories import UserRepository
 from app.routers import users
 
 client = TestClient(app)
 
+user = {
+    "_id": "id",
+    "username": "name",
+    "email": "email",
+    "full_name": "full_name",
+    "disabled": False,
+    "hashed_password": "fake-hashed-password"
+}
 
-def test_login():
+user_in_db = UserInDB(
+    id="id",
+    username="name",
+    email="email",
+    full_name="full_name",
+    disabled=False,
+    hashed_password="fake-hashed-password",
+)
+
+collection = Mock()
+collection.find_one = AsyncMock(return_value=user)
+
+collection_failed = Mock()
+collection_failed.find_one = AsyncMock(return_value=None)
+
+
+@patch("app.routers.users.get_collection_user", return_value=collection)
+def test_login(mock_collection):
     users.create_access_token = Mock(return_value="fake-token")
     users.authenticate_user = AsyncMock(return_value=UserInDB(
         id="id",
@@ -27,13 +51,16 @@ def test_login():
     }
 
 
-def test_login_failure():
+@patch("app.routers.users.get_collection_user", return_value=collection_failed)
+def test_login_failure(mock_collection):
+    users.create_access_token = Mock(return_value="fake-token")
     users.authenticate_user = AsyncMock(return_value=None)
     response = client.post("/token", data={"username": "name", "password": "password"})
     assert response.status_code == 401
 
-
-def test_read_user_me():
+@patch("app.routers.users.get_collection_user", return_value=collection)
+@patch("app.dependencies.oauth2_scheme", return_value="fake-token")
+def test_read_user_me(mock_auth, mock_collection):
     mock_user = User(
         username="name",
         email="email",
@@ -41,22 +68,13 @@ def test_read_user_me():
         disabled=False,
     )
     users.get_token_data = Mock(return_value=TokenData(username="fake-token"))
-    UserRepository.get_user_by_username = AsyncMock(return_value={
-        "_id": "id",
-        "username": "name",
-        "email": "email",
-        "full_name": "full_name",
-        "disabled": False,
-    })
-    with patch("app.dependencies.oauth2_scheme", return_value="fake-token"):
-        response = client.get("/users/me", headers={"Authorization": "Bearer fake-token"})
-        assert response.status_code == 200
-        assert response.json() == mock_user.model_dump()
+    response = client.get("/users/me", headers={"Authorization": "Bearer fake-token"})
+    assert response.status_code == 200
+    assert response.json() == mock_user.model_dump()
 
-
-def test_read_user_me_failure():
+@patch("app.routers.users.get_collection_user", return_value=collection_failed)
+@patch("app.dependencies.oauth2_scheme", return_value="fake-token")
+def test_read_user_me_failure(mock_auth, mock_collection):
     users.get_token_data = Mock(return_value=TokenData(username="fake-token"))
-    UserRepository.get_user_by_username = AsyncMock(return_value=None)
-    with patch("app.dependencies.oauth2_scheme", return_value="fake-token"):
-        response = client.get("/users/me", headers={"Authorization": "Bearer fake-token"})
-        assert response.status_code == 401
+    response = client.get("/users/me", headers={"Authorization": "Bearer fake-token"})
+    assert response.status_code == 401
