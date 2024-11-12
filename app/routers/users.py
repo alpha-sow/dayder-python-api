@@ -63,9 +63,8 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 @router.post("/token")
 async def login(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-        collection: Annotated[Collection, Depends(get_collection_user)]
 ) -> Token:
-    user = await authenticate_user(form_data.username, form_data.password, collection)
+    user = await authenticate_user(form_data.username, form_data.password, get_collection_user())
     if user is None:
         raise HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
@@ -90,14 +89,14 @@ def get_token_data(token: str, http_exception: HTTPException):
         raise http_exception
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], collection=Depends(get_collection_user)):
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     credentials_exception = HTTPException(
         status_code=HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     token_data = get_token_data(token, credentials_exception)
-    response = await get_user(username=token_data.username, collection=collection)
+    response = await get_user(username=token_data.username, collection=get_collection_user())
     if response is None:
         raise credentials_exception
     return User(**response)
@@ -117,6 +116,6 @@ def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)
 
 
 @router.post("/users", status_code=HTTP_201_CREATED)
-async def create_user(user: NewUserInDB, collection=Depends(get_collection_user)):
+async def create_user(user: NewUserInDB):
     new_user = UserInDB(hashed_password=get_password_hash(user.password), **user.model_dump())
-    await  collection.insert_user(new_user)
+    await  get_collection_user().insert_user(new_user)

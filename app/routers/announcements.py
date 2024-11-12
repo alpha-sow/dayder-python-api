@@ -17,20 +17,16 @@ def get_collection_announcement():
 
 
 @router.get("", response_model=Page[Announcement])
-async def read_announcements(
-        token: Annotated[str, Depends(oauth2_scheme)],
-        collection=Depends(get_collection_announcement)
-):
-    return await motor_paginate(collection)
+async def read_announcements(token: Annotated[str, Depends(oauth2_scheme)]):
+    return await motor_paginate(get_collection_announcement())
 
 
 @router.get("/{announcement_id}")
 async def read_announcement(
         announcement_id: str,
         token: Annotated[str, Depends(oauth2_scheme)],
-        collection=Depends(get_collection_announcement)
 ) -> Announcement:
-    announcement = await collection.find_one(ObjectId(announcement_id))
+    announcement = await get_collection_announcement().find_one(ObjectId(announcement_id))
     if announcement is None:
         raise HTTPException(status_code=404, detail="Announcement not found")
     return Announcement(**announcement)
@@ -40,24 +36,21 @@ async def read_announcement(
 async def create_announcement(
         announcement: Announcement,
         token: Annotated[str, Depends(oauth2_scheme)],
-        collection=Depends(get_collection_announcement)
 ):
-    await collection.insert_one(announcement.model_dump(exclude={'id'}))
+    await get_collection_announcement().insert_one(announcement.model_dump(exclude={'id'}))
 
 
 @router.delete("/{announcement_id}", status_code=HTTP_204_NO_CONTENT)
 async def delete_announcement(
         announcement_id: str,
         token: Annotated[str, Depends(oauth2_scheme)],
-        collection=Depends(get_collection_announcement)
 ):
-    await collection.delete_one(ObjectId(announcement_id))
+    await get_collection_announcement().delete_one(ObjectId(announcement_id))
 
 
 @router.put("")
 async def update_announcement(
         announcement: Announcement,
         token: Annotated[str, Depends(oauth2_scheme)],
-        collection=Depends(get_collection_announcement)
 ):
-    await collection.put_one(announcement)
+    await get_collection_announcement().put_one(announcement)
