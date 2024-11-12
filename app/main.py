@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi_pagination import add_pagination
 
 from app.routers import announcements, users
 
@@ -11,8 +12,11 @@ app.include_router(
     users.router,
     tags=["users"],
 )
+
 app.include_router(
     announcements.router,
     prefix="/announcements",
     tags=['announcements'],
 )
+
+add_pagination(app)

@@ -1,2 +1,0 @@
-from .user_repository import UserRepository
-from .announcement_repository import AnnouncementRepository
