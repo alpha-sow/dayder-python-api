@@ -118,4 +118,4 @@ def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)
 @router.post("/users", status_code=HTTP_201_CREATED)
 async def create_user(user: NewUserInDB):
     new_user = UserInDB(hashed_password=get_password_hash(user.password), **user.model_dump())
-    await  get_collection_user().insert_user(new_user)
+    await  get_collection_user().insert_one(new_user.model_dump())
