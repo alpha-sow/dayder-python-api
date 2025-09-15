@@ -46,7 +46,7 @@ def test_read_users(mock_paginate, mock_auth, mock_collection):
         size=50,
         pages=0
     )
-    response = client.get("/users", headers={"Authorization": "Bearer fake-token"})
+    response = client.get("/api/users", headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == 200
 
 
@@ -60,7 +60,7 @@ def test_create_user(mock_auth, mock_collection):
         "password": "password123",
         "disabled": False
     }
-    response = client.post("/users", json=new_user_data, headers={"Authorization": "Bearer fake-token"})
+    response = client.post("/api/users", json=new_user_data, headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == 201
     assert "username" in response.json()
     assert response.json()["username"] == "newuser"
@@ -69,7 +69,7 @@ def test_create_user(mock_auth, mock_collection):
 @patch("app.routers.users.get_collection_user", return_value=collection)
 @patch("app.dependencies.oauth2_scheme", return_value="fake-token")
 def test_read_user_by_id(mock_auth, mock_collection):
-    response = client.get("/users/507f1f77bcf86cd799439011", headers={"Authorization": "Bearer fake-token"})
+    response = client.get("/api/users/507f1f77bcf86cd799439011", headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == 200
     assert response.json()["username"] == "name"
 
@@ -77,5 +77,5 @@ def test_read_user_by_id(mock_auth, mock_collection):
 @patch("app.routers.users.get_collection_user", return_value=collection_failed)
 @patch("app.dependencies.oauth2_scheme", return_value="fake-token")
 def test_read_user_by_id_not_found(mock_auth, mock_collection):
-    response = client.get("/users/507f1f77bcf86cd799439011", headers={"Authorization": "Bearer fake-token"})
+    response = client.get("/api/users/507f1f77bcf86cd799439011", headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == 404

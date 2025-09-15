@@ -1,11 +1,11 @@
 ### GET all announcement
-GET 127.0.0.1:8000/announcements
+GET 127.0.0.1:8000/api/announcements
 
 ### GET one announcement
-GET 127.0.0.1:8000/announcements/6725225a2dc0df1bda38d279
+GET 127.0.0.1:8000/api/announcements/6725225a2dc0df1bda38d279
 
 ### CREATE announcement
-POST 127.0.0.1:8000/announcements
+POST 127.0.0.1:8000/api/announcements
 Content-Type: application/json
 
 {
@@ -15,4 +15,4 @@ Content-Type: application/json
 }
 
 ### DELETE announcment
-DELETE 127.0.0.1:8000/announcements/671ec78ed4e74da998f27e23/
+DELETE 127.0.0.1:8000/api/announcements/671ec78ed4e74da998f27e23/
