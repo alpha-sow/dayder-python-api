@@ -1,5 +1,5 @@
 {
-  "cSpell.words": ["dotenv", "fastapi", "mongodb"],
+  "cSpell.words": ["bson", "dotenv", "fastapi", "mongodb"],
   "python-envs.defaultEnvManager": "ms-python.python:venv",
   "python-envs.pythonProjects": []
 }
