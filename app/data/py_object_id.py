@@ -2,4 +2,4 @@ from typing import Annotated
 
 from pydantic import BeforeValidator
 
-PyObjectId = Annotated[str, BeforeValidator(str)]
+py_object_id = Annotated[str, BeforeValidator(str)]

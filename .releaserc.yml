@@ -1,0 +1,88 @@
+branches:
+  - main
+  - name: develop
+    prerelease: beta
+
+plugins:
+  - "@semantic-release/commit-analyzer"
+  - "@semantic-release/release-notes-generator"
+  - "@semantic-release/changelog"
+  - "@semantic-release/exec"
+  - "@semantic-release/github"
+
+# Plugin configurations
+preset: conventionalcommits
+
+# Commit analyzer configuration
+analyzeCommits:
+  - path: "@semantic-release/commit-analyzer"
+    releaseRules:
+      - type: feat
+        release: minor
+      - type: fix
+        release: patch
+      - type: perf
+        release: patch
+      - type: revert
+        release: patch
+      - type: docs
+        release: patch
+      - type: style
+        release: false
+      - type: refactor
+        release: patch
+      - type: test
+        release: false
+      - type: ci
+        release: false
+      - type: chore
+        release: false
+      - type: BREAKING CHANGE
+        release: major
+    parserOpts:
+      noteKeywords:
+        - BREAKING CHANGE
+        - BREAKING CHANGES
+
+# Release notes generator configuration
+generateNotes:
+  - path: "@semantic-release/release-notes-generator"
+    preset: conventionalcommits
+    parserOpts:
+      noteKeywords:
+        - BREAKING CHANGE
+        - BREAKING CHANGES
+    writerOpts:
+      commitsSort:
+        - subject
+        - scope
+
+# Changelog configuration
+changelog:
+  - path: "@semantic-release/changelog"
+    changelogFile: CHANGELOG.md
+
+# Execute commands to update version in pyproject.toml
+exec:
+  - path: "@semantic-release/exec"
+    verifyReleaseCmd: echo "Verifying release ${nextRelease.version}"
+    prepareCmd: |
+      # Update version in pyproject.toml using poetry
+      poetry version ${nextRelease.version}
+      # Ensure the version is properly updated
+      echo "Updated version to ${nextRelease.version}"
+    publishCmd: |
+      echo "Publishing version ${nextRelease.version}"
+      # Add any additional publish commands here if needed
+
+# GitHub release configuration
+github:
+  - path: "@semantic-release/github"
+    assets:
+      - path: "dist/*.whl"
+        label: "Python Wheel"
+      - path: "dist/*.tar.gz"
+        label: "Source Distribution"
+
+# Version format
+tagFormat: "${version}"

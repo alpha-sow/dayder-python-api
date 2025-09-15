@@ -3,11 +3,11 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from app.data.PyObjectId import PyObjectId
+from app.data.py_object_id import py_object_id
 
 
 class Announcement(BaseModel):
-    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    id: Optional[py_object_id] = Field(alias="_id", default=None)
     title: str = Field(...)
     description: str = Field(...)
     thumbnail: str | None = None
