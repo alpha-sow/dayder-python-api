@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import os
 from typing import Annotated
 
 import jwt
@@ -11,33 +12,31 @@ from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_201_CREATED
 
 from app.data import User, UserInDB, TokenData, Token, NewUserInDB
 from app.dependencies import database, oauth2_scheme
+from os import getenv
 
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter()
 
 
-def get_collection_user():
+def get_collection_user() -> Collection:
     return database.user
 
 
-def verify_password(plain_password, hashed_password):
+def verify_password(plain_password, hashed_password) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def get_password_hash(password):
+def get_password_hash(password) -> str:
     return pwd_context.hash(password)
 
 
-async def get_user(username: str, collection: Collection):
+async def get_user(username: str, collection: Collection) -> dict | None:
     return await collection.find_one(filter={"username": username})
 
 
-async def authenticate_user(username: str, password: str, collection: Collection):
+async def authenticate_user(username: str, password: str, collection: Collection) -> User | None:
     response = await get_user(username, collection)
     if response is None:
         return None
@@ -49,14 +48,14 @@ async def authenticate_user(username: str, password: str, collection: Collection
     return user
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, getenv("SECRET_KEY"), algorithm=getenv("ALGORITHM"))
     return encoded_jwt
 
 
@@ -71,16 +70,16 @@ async def login(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
 
 
-def get_token_data(token: str, http_exception: HTTPException):
+def get_token_data(token: str, http_exception: HTTPException) -> TokenData:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, getenv("SECRET_KEY"), algorithms=[getenv("ALGORITHM")])
         username: str = payload.get("sub")
         if username is None:
             raise http_exception
@@ -89,7 +88,7 @@ def get_token_data(token: str, http_exception: HTTPException):
         raise http_exception
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> User:
     credentials_exception = HTTPException(
         status_code=HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -104,18 +103,18 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
 
 async def get_current_active_user(
         current_user: Annotated[User, Depends(get_current_user)],
-):
+) -> User:
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
 
 @router.get("/users/me", response_model=User)
-def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]):
+def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)])-> User:
     return current_user
 
 
 @router.post("/users", status_code=HTTP_201_CREATED)
-async def create_user(user: NewUserInDB):
+async def create_user(user: NewUserInDB) -> None:
     new_user = UserInDB(hashed_password=get_password_hash(user.password), **user.model_dump())
     await  get_collection_user().insert_one(new_user.model_dump())

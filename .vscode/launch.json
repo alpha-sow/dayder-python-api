@@ -5,20 +5,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python: FastAPI",
-      "type": "python",
-      "request": "launch",
-      "module": "uvicorn",
-      "args": ["app.main:app", "--reload"],
-      "jinja": true,
-      "justMyCode": false
-    },
-    {
-      "name": "Python Debugger: FastAPI",
+      "name": "DEV",
       "type": "debugpy",
       "request": "launch",
-      "module": "uvicorn",
-      "args": ["app.main:app", "--reload"],
+      "module": "fastapi",
+      "args": ["dev"],
       "jinja": true
     }
   ]
