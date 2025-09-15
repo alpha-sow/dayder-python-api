@@ -1,8 +1,6 @@
 from datetime import datetime
 from typing import Optional
-
 from pydantic import BaseModel, Field
-
 from app.data.py_object_id import py_object_id
 
 

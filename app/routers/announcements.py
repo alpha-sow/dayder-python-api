@@ -17,16 +17,16 @@ def get_collection_announcement():
 
 
 @router.get("", response_model=Page[Announcement])
-async def read_announcements(token: Annotated[str, Depends(oauth2_scheme)]):
+async def read_announcements(token: Annotated[str, Depends(oauth2_scheme)])-> Page[Announcement]:
     return await motor_paginate(get_collection_announcement())
 
 
-@router.get("/{announcement_id}")
+@router.get("/{id}")
 async def read_announcement(
-        announcement_id: str,
+        id: str,
         token: Annotated[str, Depends(oauth2_scheme)],
 ) -> Announcement:
-    announcement = await get_collection_announcement().find_one(ObjectId(announcement_id))
+    announcement = await get_collection_announcement().find_one(ObjectId(id))
     if announcement is None:
         raise HTTPException(status_code=404, detail="Announcement not found")
     return Announcement(**announcement)
