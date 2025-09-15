@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi_pagination import add_pagination
 
-from app.routers import announcements, users, auth
+from app.routers import announcements, authentication, users
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -17,9 +17,9 @@ app = FastAPI(
 )
 
 app.include_router(
-    auth.router,
-    prefix="/auth",
-    tags=["auth"],
+    authentication.router,
+    prefix="/authentication",
+    tags=["authentication"],
 )
 
 app.include_router(
