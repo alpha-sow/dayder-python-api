@@ -33,11 +33,14 @@ def get_password_hash(password) -> str:
     return pwd_context.hash(password)
 
 @router.get("")
-async def read_users(token: Annotated[str, Depends(oauth2_scheme)],
+async def read_users(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    current_user: User = Depends(RequireRole([UserRole.ADMIN]))
 ) -> Page[User]:
     """
     Retrieves all users from the database.
     Requires authentication via token.
+    Requires the current user to have ADMIN role.
     """
     return await motor_paginate(get_collection_user())
 
@@ -50,22 +53,55 @@ async def create_user(
     """
     Creates a new user with hashed password.
     Requires authentication via token.
+    Requires the current user to have ADMIN role.
     """
     new_user = UserInDB(hashed_password=get_password_hash(user.password), **user.model_dump())
     await  get_collection_user().insert_one(new_user.model_dump(mode='json'))
     return User(**new_user.model_dump())
 
 @router.get("/{id}")
-async def read_user(id: str, token: Annotated[str, Depends(oauth2_scheme)],
+async def read_user(
+    id: str, token: Annotated[str, Depends(oauth2_scheme)],
+    current_user: User = Depends(RequireRole([UserRole.ADMIN]))
 ) -> User:
     """
     Retrieves a user by ID.
     Requires authentication via token.
+    Requires the current user to have ADMIN role.
     """
     user = await get_collection_user().find_one({"_id": ObjectId(id)})
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return User(**user)
+
+@router.put("/{id}")
+async def update_user(
+    id: str, user: User, token: Annotated[str, Depends(oauth2_scheme)],
+    current_user: User = Depends(RequireRole([UserRole.ADMIN]))
+) -> None:
+    """
+    Updates a user by ID.
+    Requires authentication via token.
+    Requires the current user to have ADMIN role.
+    """
+    result = await get_collection_user().update_one({"_id": ObjectId(id)}, {"$set": user.model_dump(exclude={'id'})})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+
+@router.delete("/{id}")
+async def delete_user(
+    id: str, token: Annotated[str, Depends(oauth2_scheme)],
+    current_user: User = Depends(RequireRole([UserRole.ADMIN]))
+) -> None:
+    """
+    Deletes a user by ID.
+    Requires authentication via token.
+    Requires the current user to have ADMIN role.
+    """
+    result = await get_collection_user().delete_one({"_id": ObjectId(id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+
 
 async def create_default_admin() -> None:
     """
