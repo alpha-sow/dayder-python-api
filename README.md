@@ -57,10 +57,52 @@ Use the `/token` endpoint to obtain an access token for authenticated requests.
 
 ## Running the Application
 
-1. Install dependencies: `pip install -r requirements.txt`
-2. Set up environment variables in `.env` file
-3. Start the application: `uvicorn app.main:app --reload`
-4. Access the API documentation at `http://localhost:8000/docs`
+### Prerequisites
+
+- Python 3.10+
+- Poetry (for dependency management)
+- MongoDB
+
+### Installation
+
+1. **Install Poetry** (if not already installed):
+
+   ```bash
+   curl -sSL https://install.python-poetry.org | python3 -
+   ```
+
+2. **Install dependencies**:
+
+   ```bash
+   poetry install
+   ```
+
+3. **Set up environment variables** in `.env` file
+
+4. **Start the application**:
+
+   ```bash
+   poetry run uvicorn app.main:app --reload
+   ```
+
+5. **Access the API documentation** at `http://localhost:8000/docs`
+
+### Development Commands
+
+- **Install dependencies**: `poetry install`
+- **Add a new dependency**: `poetry add package-name`
+- **Add a development dependency**: `poetry add --group dev package-name`
+- **Run the application**: `poetry run uvicorn app.main:app --reload`
+- **Run tests**: `poetry run pytest`
+- **Activate virtual environment**: `poetry shell`
+
+### Docker
+
+The application can also be run using Docker:
+
+```bash
+docker-compose up --build
+```
 
 ## API Endpoints
 
@@ -72,6 +114,7 @@ Use the `/token` endpoint to obtain an access token for authenticated requests.
 ## Development
 
 The application uses:
+
 - FastAPI for the web framework
 - MongoDB for data storage
 - JWT for authentication
