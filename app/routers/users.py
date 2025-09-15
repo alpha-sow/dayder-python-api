@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, logger
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt import InvalidTokenError
 from passlib.context import CryptContext
@@ -115,22 +115,45 @@ def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)
 
 
 @router.post("/users", status_code=HTTP_201_CREATED)
-async def create_user(user: NewUserInDB) -> None:
+async def create_user(user: NewUserInDB, token: Annotated[str, Depends(oauth2_scheme)],
+) -> None:
+    """
+     Creates a new user with hashed password.
+    """
     new_user = UserInDB(hashed_password=get_password_hash(user.password), **user.model_dump())
     await  get_collection_user().insert_one(new_user.model_dump())
 
-async def create_default_admin():
-    admin_username = settings.ADMIN_USERNAME
-    admin_password = settings.ADMIN_PASSWORD
-    if admin_username is None or admin_password is None:
-        return
-    existing_admin =  get_collection_user().find_one(filter={"username": admin_username})
-    if existing_admin is not None:
-        return
-    new_admin = UserInDB(
-        username=admin_username,
-        full_name="Administrator",
-        email="admin@example.com",
-        hashed_password=get_password_hash(admin_password)
-    )
-    await get_collection_user().insert_one(new_admin.model_dump())
+async def create_default_admin() -> None:
+    """
+    Creates a default admin user on application startup.
+    Uses ADMIN_USERNAME and ADMIN_PASSWORD from environment variables,
+    or defaults to 'admin'/'admin123' for development.
+    """
+    try:
+        admin_username = settings.ADMIN_USERNAME
+        admin_password = settings.ADMIN_PASSWORD
+        
+        collection = get_collection_user()
+        existing_admin = await collection.find_one(filter={"username": admin_username})
+        
+        if existing_admin is not None:
+            logger.info(f"Default admin user '{admin_username}' already exists. Skipping creation.")
+            return
+        
+        new_admin = UserInDB(
+            username=admin_username,
+            full_name="Administrator",
+            email="admin@dayder.com",
+            hashed_password=get_password_hash(admin_password),
+            disabled=False
+        )
+        
+        await collection.insert_one(new_admin.model_dump())
+        
+        if admin_password == "admin123":
+            logger.warning(f"Default admin user '{admin_username}' created with default password 'admin123'. Please change this in production!")
+        else:
+            logger.info(f"Default admin user '{admin_username}' created successfully.")
+        
+    except Exception as e:
+        logger.error(f"Failed to create default admin user: {str(e)}")
