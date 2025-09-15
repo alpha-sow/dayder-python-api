@@ -6,7 +6,10 @@ from passlib.context import CryptContext
 from pymongo.synchronous.collection import Collection
 from starlette.status import HTTP_201_CREATED
 from app.data import User, UserInDB, NewUserInDB
+from app.data.user_role import UserRole
 from app.dependencies import database, oauth2_scheme
+from app.require_role import RequireRole
+from app.routers.authentication import get_current_active_user
 from app.settings import settings
 from app.logger import logger
 from fastapi_pagination.ext.motor import paginate as motor_paginate
@@ -39,14 +42,17 @@ async def read_users(token: Annotated[str, Depends(oauth2_scheme)],
     return await motor_paginate(get_collection_user())
 
 @router.post("", status_code=HTTP_201_CREATED)
-async def create_user(user: NewUserInDB, token: Annotated[str, Depends(oauth2_scheme)],
+async def create_user(
+    user: NewUserInDB, 
+    token: Annotated[str, Depends(oauth2_scheme)],
+    current_user: User = Depends(RequireRole([UserRole.ADMIN]))
 ) -> User:
     """
     Creates a new user with hashed password.
     Requires authentication via token.
     """
     new_user = UserInDB(hashed_password=get_password_hash(user.password), **user.model_dump())
-    await  get_collection_user().insert_one(new_user.model_dump())
+    await  get_collection_user().insert_one(new_user.model_dump(mode='json'))
     return User(**new_user.model_dump())
 
 @router.get("/{id}")
@@ -83,10 +89,11 @@ async def create_default_admin() -> None:
             full_name="Administrator",
             email="admin@dayder.com",
             hashed_password=get_password_hash(admin_password),
-            disabled=False
+            disabled=False,
+            role=UserRole.ADMIN,
         )
         
-        await collection.insert_one(new_admin.model_dump())
+        await collection.insert_one(new_admin.model_dump(mode='json'))
         
         if admin_password == "admin123":
             logger.warning(f"Default admin user '{admin_username}' created with default password 'admin123'. Please change this in production!")
