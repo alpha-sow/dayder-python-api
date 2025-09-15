@@ -120,7 +120,7 @@ async def get_current_active_user(
 
 
 @router.post("/credential")
-async def login(
+async def login_with_credentials(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
     """

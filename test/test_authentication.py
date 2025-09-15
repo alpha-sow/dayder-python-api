@@ -13,7 +13,8 @@ user = {
     "email": "email",
     "full_name": "full_name",
     "disabled": False,
-    "hashed_password": "fake-hashed-password"
+    "hashed_password": "fake-hashed-password",
+    "role": "user"
 }
 
 user_in_db = UserInDB(
@@ -23,6 +24,7 @@ user_in_db = UserInDB(
     full_name="full_name",
     disabled=False,
     hashed_password="fake-hashed-password",
+    role="user"
 )
 
 collection = Mock()
@@ -42,6 +44,7 @@ def test_login(mock_collection):
         full_name="full_name",
         disabled=False,
         hashed_password="fake-hashed-password",
+        role="user"
     ))
     response = client.post("/api/authentication/credential", data={"username": "name", "password": "password"})
     assert response.status_code == 200
@@ -70,7 +73,8 @@ def test_read_user_me(mock_auth, mock_collection):
         "username": "name",
         "email": "email",
         "full_name": "full_name",
-        "disabled": False
+        "disabled": False,
+        "role": "user"
     }
     assert response.json() == expected_response
 
