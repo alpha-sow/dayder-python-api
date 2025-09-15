@@ -43,7 +43,7 @@ def test_login(mock_collection):
         disabled=False,
         hashed_password="fake-hashed-password",
     ))
-    response = client.post("/authentication/token", data={"username": "name", "password": "password"})
+    response = client.post("/authentication/credential", data={"username": "name", "password": "password"})
     assert response.status_code == 200
     assert response.json() == {
         "access_token": "fake-token",
@@ -55,7 +55,7 @@ def test_login(mock_collection):
 def test_login_failure(mock_collection):
     authentication.create_access_token = Mock(return_value="fake-token")
     authentication.authenticate_user = AsyncMock(return_value=None)
-    response = client.post("/authentication/token", data={"username": "name", "password": "password"})
+    response = client.post("/authentication/credential", data={"username": "name", "password": "password"})
     assert response.status_code == 401
 
 
@@ -63,7 +63,7 @@ def test_login_failure(mock_collection):
 @patch("app.dependencies.oauth2_scheme", return_value="fake-token")
 def test_read_user_me(mock_auth, mock_collection):
     authentication.get_token_data = Mock(return_value=TokenData(username="name"))
-    response = client.get("/authentication/me", headers={"Authorization": "Bearer fake-token"})
+    response = client.get("/authentication", headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == 200
     expected_response = {
         "_id": "id",
@@ -79,5 +79,5 @@ def test_read_user_me(mock_auth, mock_collection):
 @patch("app.dependencies.oauth2_scheme", return_value="fake-token")
 def test_read_user_me_failure(mock_auth, mock_collection):
     authentication.get_token_data = Mock(return_value=TokenData(username="nonexistent"))
-    response = client.get("/authentication/me", headers={"Authorization": "Bearer fake-token"})
+    response = client.get("/authentication", headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == 401
