@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-import os
 from typing import Annotated
 
 import jwt
@@ -12,7 +11,8 @@ from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_201_CREATED
 
 from app.data import User, UserInDB, TokenData, Token, NewUserInDB
 from app.dependencies import database, oauth2_scheme
-from os import getenv
+from app.settings import settings
+
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -55,7 +55,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, getenv("SECRET_KEY"), algorithm=getenv("ALGORITHM"))
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
 
@@ -70,7 +70,7 @@ async def login(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
@@ -79,7 +79,7 @@ async def login(
 
 def get_token_data(token: str, http_exception: HTTPException) -> TokenData:
     try:
-        payload = jwt.decode(token, getenv("SECRET_KEY"), algorithms=[getenv("ALGORITHM")])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise http_exception
@@ -118,3 +118,19 @@ def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)
 async def create_user(user: NewUserInDB) -> None:
     new_user = UserInDB(hashed_password=get_password_hash(user.password), **user.model_dump())
     await  get_collection_user().insert_one(new_user.model_dump())
+
+async def create_default_admin():
+    admin_username = settings.ADMIN_USERNAME
+    admin_password = settings.ADMIN_PASSWORD
+    if admin_username is None or admin_password is None:
+        return
+    existing_admin =  get_collection_user().find_one(filter={"username": admin_username})
+    if existing_admin is not None:
+        return
+    new_admin = UserInDB(
+        username=admin_username,
+        full_name="Administrator",
+        email="admin@example.com",
+        hashed_password=get_password_hash(admin_password)
+    )
+    await get_collection_user().insert_one(new_admin.model_dump())
