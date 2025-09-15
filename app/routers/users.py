@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, logger
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt import InvalidTokenError
 from passlib.context import CryptContext
@@ -12,6 +12,7 @@ from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_201_CREATED
 from app.data import User, UserInDB, TokenData, Token, NewUserInDB
 from app.dependencies import database, oauth2_scheme
 from app.settings import settings
+from app.logger import logger
 
 
 
