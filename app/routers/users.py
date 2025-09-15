@@ -22,22 +22,37 @@ router = APIRouter()
 
 
 def get_collection_user() -> Collection:
+    """
+    Retrieves the user collection from the database.
+    """
     return database.user
 
 
 def verify_password(plain_password, hashed_password) -> bool:
+    """
+    Verifies a plain password against a hashed password.
+    """
     return pwd_context.verify(plain_password, hashed_password)
 
 
 def get_password_hash(password) -> str:
+    """
+    Hashes the password using bcrypt.
+    """
     return pwd_context.hash(password)
 
 
 async def get_user(username: str, collection: Collection) -> dict | None:
+    """
+    Retrieves a user by username.
+    """
     return await collection.find_one(filter={"username": username})
 
 
 async def authenticate_user(username: str, password: str, collection: Collection) -> User | None:
+    """
+    Authenticates the user and returns a User object if successful.
+    """
     response = await get_user(username, collection)
     if response is None:
         return None
@@ -50,6 +65,9 @@ async def authenticate_user(username: str, password: str, collection: Collection
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """
+    Creates a JWT token with an expiration time.
+    """
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -64,6 +82,10 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 async def login(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
+    """
+    Authenticates the user and returns a JWT token if successful.
+    Raises HTTP 401 if authentication fails.
+    """
     user = await authenticate_user(form_data.username, form_data.password, get_collection_user())
     if user is None:
         raise HTTPException(
@@ -79,6 +101,10 @@ async def login(
 
 
 def get_token_data(token: str, http_exception: HTTPException) -> TokenData:
+    """
+    Decodes the JWT token and extracts the username.
+    Raises the provided HTTP exception if decoding fails or username is missing.
+    """
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username: str = payload.get("sub")
@@ -90,6 +116,10 @@ def get_token_data(token: str, http_exception: HTTPException) -> TokenData:
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> User:
+    """"
+    Retrieves the current user based on the provided token.
+    Raises HTTP 401 if the token is invalid or user not found.
+    """
     credentials_exception = HTTPException(
         status_code=HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -105,6 +135,10 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Use
 async def get_current_active_user(
         current_user: Annotated[User, Depends(get_current_user)],
 ) -> User:
+    """
+    Ensures the current user is active (not disabled).
+    Raises HTTP 400 if the user is inactive.
+    """
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -112,17 +146,23 @@ async def get_current_active_user(
 
 @router.get("/users/me", response_model=User)
 def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)])-> User:
+    """
+    Retrieves the current authenticated user's information.
+    Requires authentication via token.
+    """
     return current_user
 
 
 @router.post("/users", status_code=HTTP_201_CREATED)
 async def create_user(user: NewUserInDB, token: Annotated[str, Depends(oauth2_scheme)],
-) -> None:
+) -> User:
     """
-     Creates a new user with hashed password.
+    Creates a new user with hashed password.
+    Requires authentication via token.
     """
     new_user = UserInDB(hashed_password=get_password_hash(user.password), **user.model_dump())
     await  get_collection_user().insert_one(new_user.model_dump())
+    return User(**new_user.model_dump())
 
 async def create_default_admin() -> None:
     """
