@@ -9,7 +9,6 @@ from app.data import User, UserInDB, NewUserInDB
 from app.data.user_role import UserRole
 from app.dependencies import database, oauth2_scheme
 from app.require_role import RequireRole
-from app.routers.authentication import get_current_active_user
 from app.settings import settings
 from app.logger import logger
 from fastapi_pagination.ext.motor import paginate as motor_paginate
@@ -18,6 +17,9 @@ from fastapi_pagination.ext.motor import paginate as motor_paginate
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter()
+
+def role_admin():
+    return RequireRole([UserRole.ADMIN])
 
 
 def get_collection_user() -> Collection:
@@ -35,7 +37,7 @@ def get_password_hash(password) -> str:
 @router.get("")
 async def read_users(
     token: Annotated[str, Depends(oauth2_scheme)],
-    current_user: User = Depends(RequireRole([UserRole.ADMIN]))
+    current_user: User = Depends(role_admin())
 ) -> Page[User]:
     """
     Retrieves all users from the database.
@@ -48,7 +50,7 @@ async def read_users(
 async def create_user(
     user: NewUserInDB, 
     token: Annotated[str, Depends(oauth2_scheme)],
-    current_user: User = Depends(RequireRole([UserRole.ADMIN]))
+    current_user: User = Depends(role_admin())
 ) -> User:
     """
     Creates a new user with hashed password.
@@ -62,7 +64,7 @@ async def create_user(
 @router.get("/{id}")
 async def read_user(
     id: str, token: Annotated[str, Depends(oauth2_scheme)],
-    current_user: User = Depends(RequireRole([UserRole.ADMIN]))
+    current_user: User = Depends(role_admin())
 ) -> User:
     """
     Retrieves a user by ID.
@@ -77,7 +79,7 @@ async def read_user(
 @router.put("/{id}")
 async def update_user(
     id: str, user: User, token: Annotated[str, Depends(oauth2_scheme)],
-    current_user: User = Depends(RequireRole([UserRole.ADMIN]))
+    current_user: User = Depends(role_admin())
 ) -> None:
     """
     Updates a user by ID.
@@ -91,7 +93,7 @@ async def update_user(
 @router.delete("/{id}")
 async def delete_user(
     id: str, token: Annotated[str, Depends(oauth2_scheme)],
-    current_user: User = Depends(RequireRole([UserRole.ADMIN]))
+    current_user: User = Depends(role_admin())
 ) -> None:
     """
     Deletes a user by ID.

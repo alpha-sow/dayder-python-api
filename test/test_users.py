@@ -4,17 +4,15 @@ from bson import ObjectId
 
 from app.data import UserInDB, User, NewUserInDB
 from app.data.user_role import UserRole
-from app.data.token import TokenData
 from app.main import app
-from app.routers import users, authentication
-
-client = TestClient(app)
+from app.routers.authentication import get_current_active_user
+from app.dependencies import oauth2_scheme
 
 user = {
     "_id": ObjectId("507f1f77bcf86cd799439011"),
-    "username": "name",
-    "email": "email",
-    "full_name": "full_name",
+    "username": "testuser",
+    "email": "test@example.com",
+    "full_name": "Test User",
     "disabled": False,
     "hashed_password": "fake-hashed-password",
     "role": UserRole.ADMIN
@@ -22,9 +20,9 @@ user = {
 
 user_in_db = UserInDB(
     id="507f1f77bcf86cd799439011",
-    username="name",
-    email="email",
-    full_name="full_name",
+    username="testuser",
+    email="test@example.com",
+    full_name="Test User",
     disabled=False,
     hashed_password="fake-hashed-password",
     role=UserRole.ADMIN
@@ -37,11 +35,23 @@ collection.insert_one = AsyncMock()
 collection_failed = Mock()
 collection_failed.find_one = AsyncMock(return_value=None)
 
+# Mock authentication dependencies
+def mock_oauth2_scheme():
+    return "fake-token"
+
+def mock_current_user():
+    return user_in_db
+
+# Override dependencies in the app
+app.dependency_overrides[oauth2_scheme] = mock_oauth2_scheme
+app.dependency_overrides[get_current_active_user] = mock_current_user
+
+client = TestClient(app)
+
 
 @patch("app.routers.users.get_collection_user", return_value=collection)
-@patch("app.dependencies.oauth2_scheme", return_value="fake-token")
 @patch("app.routers.users.motor_paginate")
-def test_read_users(mock_paginate, mock_auth, mock_collection):
+def test_read_users(mock_paginate, mock_collection):
     from fastapi_pagination import Page
     mock_paginate.return_value = Page(
         items=[],
@@ -55,30 +65,7 @@ def test_read_users(mock_paginate, mock_auth, mock_collection):
 
 
 @patch("app.routers.users.get_collection_user", return_value=collection)
-@patch("app.dependencies.oauth2_scheme", return_value="fake-token")
-def test_create_user(mock_auth, mock_collection):
-    # Mock get_token_data to return admin user token data
-    authentication.get_token_data = Mock(return_value=TokenData(username="admin"))
-    
-    # Add admin user to the mocked collection
-    admin_user = {
-        "_id": ObjectId("507f1f77bcf86cd799439012"),
-        "username": "admin",
-        "email": "admin@example.com",
-        "full_name": "Admin User",
-        "disabled": False,
-        "hashed_password": "fake-hashed-password",
-        "role": UserRole.ADMIN
-    }
-    
-    # Mock find_one to return the admin user when username is "admin"
-    async def mock_find_one(filter_dict):
-        if filter_dict.get("username") == "admin":
-            return admin_user
-        return user
-    
-    collection.find_one = AsyncMock(side_effect=mock_find_one)
-    
+def test_create_user(mock_collection):
     new_user_data = {
         "username": "newuser",
         "email": "newuser@example.com",
@@ -93,15 +80,13 @@ def test_create_user(mock_auth, mock_collection):
 
 
 @patch("app.routers.users.get_collection_user", return_value=collection)
-@patch("app.dependencies.oauth2_scheme", return_value="fake-token")
-def test_read_user_by_id(mock_auth, mock_collection):
+def test_read_user_by_id(mock_collection):
     response = client.get("/api/users/507f1f77bcf86cd799439011", headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == 200
-    assert response.json()["username"] == "name"
+    assert response.json()["username"] == "testuser"
 
 
 @patch("app.routers.users.get_collection_user", return_value=collection_failed)
-@patch("app.dependencies.oauth2_scheme", return_value="fake-token")
-def test_read_user_by_id_not_found(mock_auth, mock_collection):
+def test_read_user_by_id_not_found(mock_collection):
     response = client.get("/api/users/507f1f77bcf86cd799439011", headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == 404
