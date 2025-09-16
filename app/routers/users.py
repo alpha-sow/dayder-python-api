@@ -18,8 +18,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter()
 
-def role_admin():
-    return RequireRole([UserRole.ADMIN])
+admin = RequireRole([UserRole.ADMIN])
 
 
 def get_collection_user() -> Collection:
@@ -37,7 +36,7 @@ def get_password_hash(password) -> str:
 @router.get("")
 async def read_users(
     token: Annotated[str, Depends(oauth2_scheme)],
-    current_user: User = Depends(role_admin())
+    current_user: Annotated[UserInDB, Depends(get_collection_user)]
 ) -> Page[User]:
     """
     Retrieves all users from the database.
@@ -50,7 +49,7 @@ async def read_users(
 async def create_user(
     user: NewUserInDB, 
     token: Annotated[str, Depends(oauth2_scheme)],
-    current_user: User = Depends(role_admin())
+    current_user: Annotated[UserInDB, Depends(get_collection_user)]
 ) -> User:
     """
     Creates a new user with hashed password.
@@ -64,7 +63,7 @@ async def create_user(
 @router.get("/{id}")
 async def read_user(
     id: str, token: Annotated[str, Depends(oauth2_scheme)],
-    current_user: User = Depends(role_admin())
+    current_user: Annotated[UserInDB, Depends(get_collection_user)]
 ) -> User:
     """
     Retrieves a user by ID.
@@ -79,7 +78,7 @@ async def read_user(
 @router.put("/{id}")
 async def update_user(
     id: str, user: User, token: Annotated[str, Depends(oauth2_scheme)],
-    current_user: User = Depends(role_admin())
+    current_user: Annotated[UserInDB, Depends(get_collection_user)]
 ) -> None:
     """
     Updates a user by ID.
@@ -93,7 +92,7 @@ async def update_user(
 @router.delete("/{id}")
 async def delete_user(
     id: str, token: Annotated[str, Depends(oauth2_scheme)],
-    current_user: User = Depends(role_admin())
+    current_user: Annotated[UserInDB, Depends(get_collection_user)]
 ) -> None:
     """
     Deletes a user by ID.

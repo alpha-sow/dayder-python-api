@@ -34,24 +34,14 @@ collection.insert_one = AsyncMock()
 
 collection_failed = Mock()
 collection_failed.find_one = AsyncMock(return_value=None)
-
-# Mock authentication dependencies
-def mock_oauth2_scheme():
-    return "fake-token"
-
-def mock_current_user():
-    return user_in_db
-
-# Override dependencies in the app
-app.dependency_overrides[oauth2_scheme] = mock_oauth2_scheme
-app.dependency_overrides[get_current_active_user] = mock_current_user
-
 client = TestClient(app)
 
 
 @patch("app.routers.users.get_collection_user", return_value=collection)
 @patch("app.routers.users.motor_paginate")
-def test_read_users(mock_paginate, mock_collection):
+@patch("app.dependencies.oauth2_scheme", return_value="fake-token")
+@patch("app.routers.users.admin", return_value=user_in_db)
+def test_read_users(mock_current_user, mock_auth, mock_paginate, mock_collection):
     from fastapi_pagination import Page
     mock_paginate.return_value = Page(
         items=[],
@@ -65,7 +55,9 @@ def test_read_users(mock_paginate, mock_collection):
 
 
 @patch("app.routers.users.get_collection_user", return_value=collection)
-def test_create_user(mock_collection):
+@patch("app.dependencies.oauth2_scheme", return_value="fake-token")
+@patch("app.routers.users.admin", return_value=user_in_db)
+def test_create_user(mock_current_user, mock_auth,mock_collection):
     new_user_data = {
         "username": "newuser",
         "email": "newuser@example.com",
@@ -80,13 +72,17 @@ def test_create_user(mock_collection):
 
 
 @patch("app.routers.users.get_collection_user", return_value=collection)
-def test_read_user_by_id(mock_collection):
+@patch("app.dependencies.oauth2_scheme", return_value="fake-token")
+@patch("app.routers.users.admin", return_value=user_in_db)
+def test_read_user_by_id(mock_current_user, mock_auth,mock_collection):
     response = client.get("/api/users/507f1f77bcf86cd799439011", headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == 200
     assert response.json()["username"] == "testuser"
 
 
 @patch("app.routers.users.get_collection_user", return_value=collection_failed)
-def test_read_user_by_id_not_found(mock_collection):
+@patch("app.dependencies.oauth2_scheme", return_value="fake-token")
+@patch("app.routers.users.admin", return_value=user_in_db)
+def test_read_user_by_id_not_found(mock_current_user, mock_auth,mock_collection):
     response = client.get("/api/users/507f1f77bcf86cd799439011", headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == 404
