@@ -119,8 +119,8 @@ async def get_current_active_user(
 
 
 
-@router.post("/token")
-async def login(
+@router.post("/credential")
+async def login_with_credentials(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
     """
@@ -140,8 +140,8 @@ async def login(
     )
     return Token(access_token=access_token, token_type="bearer")
 
-@router.get("/me", response_model=User)
-def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)])-> User:
+@router.get("", response_model=User)
+def read_authenticated_user(current_user: Annotated[User, Depends(get_current_active_user)])-> User:
     """
     Retrieves the current authenticated user's information.
     Requires authentication via token.

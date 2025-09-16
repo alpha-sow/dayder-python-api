@@ -40,17 +40,18 @@ async def create_announcement(
     await get_collection_announcement().insert_one(announcement.model_dump(exclude={'id'}))
 
 
-@router.delete("/{announcement_id}", status_code=HTTP_204_NO_CONTENT)
+@router.delete("/{id}", status_code=HTTP_204_NO_CONTENT)
 async def delete_announcement(
-        announcement_id: str,
+        id: str,
         token: Annotated[str, Depends(oauth2_scheme)],
 ):
-    await get_collection_announcement().delete_one(ObjectId(announcement_id))
+    await get_collection_announcement().delete_one(ObjectId(id))
 
 
-@router.put("")
+@router.put("/{id}")
 async def update_announcement(
+        id: str,
         announcement: Announcement,
         token: Annotated[str, Depends(oauth2_scheme)],
 ):
-    await get_collection_announcement().put_one(announcement)
+    await get_collection_announcement().update_one({"_id": ObjectId(id)}, {"$set": announcement.model_dump(exclude={'id'})})

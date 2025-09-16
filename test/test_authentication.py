@@ -13,7 +13,8 @@ user = {
     "email": "email",
     "full_name": "full_name",
     "disabled": False,
-    "hashed_password": "fake-hashed-password"
+    "hashed_password": "fake-hashed-password",
+    "role": "user"
 }
 
 user_in_db = UserInDB(
@@ -23,6 +24,7 @@ user_in_db = UserInDB(
     full_name="full_name",
     disabled=False,
     hashed_password="fake-hashed-password",
+    role="user"
 )
 
 collection = Mock()
@@ -42,8 +44,9 @@ def test_login(mock_collection):
         full_name="full_name",
         disabled=False,
         hashed_password="fake-hashed-password",
+        role="user"
     ))
-    response = client.post("/authentication/token", data={"username": "name", "password": "password"})
+    response = client.post("/api/authentication/credential", data={"username": "name", "password": "password"})
     assert response.status_code == 200
     assert response.json() == {
         "access_token": "fake-token",
@@ -55,7 +58,7 @@ def test_login(mock_collection):
 def test_login_failure(mock_collection):
     authentication.create_access_token = Mock(return_value="fake-token")
     authentication.authenticate_user = AsyncMock(return_value=None)
-    response = client.post("/authentication/token", data={"username": "name", "password": "password"})
+    response = client.post("/api/authentication/credential", data={"username": "name", "password": "password"})
     assert response.status_code == 401
 
 
@@ -63,14 +66,15 @@ def test_login_failure(mock_collection):
 @patch("app.dependencies.oauth2_scheme", return_value="fake-token")
 def test_read_user_me(mock_auth, mock_collection):
     authentication.get_token_data = Mock(return_value=TokenData(username="name"))
-    response = client.get("/authentication/me", headers={"Authorization": "Bearer fake-token"})
+    response = client.get("/api/authentication", headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == 200
     expected_response = {
         "_id": "id",
         "username": "name",
         "email": "email",
         "full_name": "full_name",
-        "disabled": False
+        "disabled": False,
+        "role": "user"
     }
     assert response.json() == expected_response
 
@@ -79,5 +83,5 @@ def test_read_user_me(mock_auth, mock_collection):
 @patch("app.dependencies.oauth2_scheme", return_value="fake-token")
 def test_read_user_me_failure(mock_auth, mock_collection):
     authentication.get_token_data = Mock(return_value=TokenData(username="nonexistent"))
-    response = client.get("/authentication/me", headers={"Authorization": "Bearer fake-token"})
+    response = client.get("/api/authentication", headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == 401

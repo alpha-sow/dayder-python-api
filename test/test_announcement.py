@@ -35,7 +35,7 @@ collection_failed.find_one = AsyncMock(return_value=None)
 @patch("app.dependencies.oauth2_scheme", return_value="fake-token")
 @patch("app.routers.announcements.motor_paginate", return_value=pagination)
 def test_read_announcements(mock_motor_paginate, mock_auth):
-    response = client.get("/announcements")
+    response = client.get("/api/announcements")
     assert response.status_code == 200
     assert response.json() == pagination
 
@@ -43,7 +43,7 @@ def test_read_announcements(mock_motor_paginate, mock_auth):
 @patch("app.dependencies.oauth2_scheme", return_value="fake-token")
 @patch("app.routers.announcements.get_collection_announcement", return_value=collection)
 def test_read_announcement_by_id(mock_collection, mock_auth):
-    response = client.get("/announcements/6725225a2dc0df1bda38d279")
+    response = client.get("/api/announcements/6725225a2dc0df1bda38d279")
     assert response.status_code == 200
     assert response.json() == mongo_response
 
@@ -51,7 +51,7 @@ def test_read_announcement_by_id(mock_collection, mock_auth):
 @patch("app.dependencies.oauth2_scheme", return_value="fake-token")
 @patch("app.routers.announcements.get_collection_announcement", return_value=collection_failed)
 def test_read_announcement_by_id_failed(mock_collection, mock_auth):
-    response = client.get("/announcements/6725225a2dc0df1bda38d279")
+    response = client.get("/api/announcements/6725225a2dc0df1bda38d279")
     assert response.status_code == 404
     assert response.json() == {'detail': 'Announcement not found'}
 
@@ -59,7 +59,7 @@ def test_read_announcement_by_id_failed(mock_collection, mock_auth):
 @patch("app.dependencies.oauth2_scheme", return_value="fake-token")
 @patch("app.routers.announcements.get_collection_announcement", return_value=collection)
 def test_create_announcement(mock_collection, mock_auth):
-    response = client.post("/announcements", json={
+    response = client.post("/api/announcements", json={
         "title": "string",
         "description": "string",
         "thumbnail": "string",
@@ -70,5 +70,5 @@ def test_create_announcement(mock_collection, mock_auth):
 @patch("app.dependencies.oauth2_scheme", return_value="fake-token")
 @patch("app.routers.announcements.get_collection_announcement", return_value=collection)
 def test_delete_announcement(mock_collection, mock_auth):
-    response = client.delete("/announcements/6725225a2dc0df1bda38d279")
+    response = client.delete("/api/announcements/6725225a2dc0df1bda38d279")
     assert response.status_code == 204
